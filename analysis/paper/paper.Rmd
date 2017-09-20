@@ -1,0 +1,188 @@
+---
+title: "Title Goes Here"
+author:
+  - author 1
+  - author 2
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+    bookdown::html_document2:
+    fig_caption: yes
+    reference_docx: templates/template.docx
+bibliography: references.bib
+csl: journal-of-archaeological-science.csl
+abstract: |
+  Text of abstract
+keywords: |
+  keyword 1; keyword 2; keyword 3
+highlights: |
+  These are the highlights. 
+---
+
+
+<!-- This is the format for text comments that will be ignored during renderings. Do not put R code in these comments because it will not be ignored. -->
+
+```{r, setup, echo = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  echo = FALSE,
+  comment = "#>",
+  fig.path = "../figures/"
+)
+
+library(modelextinctionideas)
+```
+
+# Introduction
+
+Here is a citation [@Marwick2017]
+
+# Background
+
+```{r load-data}
+
+# reload --------------------------------------------------------------------
+# this is the fast way to resume:
+items_df <- readRDS("../data/derived_data/saa2018-data-df.rds")
+
+library(tidyverse)
+items_df <-
+items_df %>%
+  # remove branding
+  filter(authors != "FN Clarivate Analytics Web of Science\nVR 1.0") %>%
+  # uniques only
+  group_by(authors, title, journal) %>%
+  filter(row_number() == 1)
+
+items_wth_refs <-
+  items_df %>%
+  filter(!is.na(refs)) %>%
+  filter(!is.na(year))
+
+# how many items do we have?
+hm_items <- nrow(items_wth_refs) # 12133
+
+# span what time period?
+time_range <- range(items_wth_refs$year) # 1905 2017
+
+```
+
+We have `r hm_items` articles in our study. The publication dates range from `r time_range[1]` to  `r time_range[2]`.
+
+The distribution of articles is strongly skewed to more recent years, with a rapid increase after the mid-2000s.
+
+```{r}
+items_wth_refs %>% 
+  group_by(year) %>% 
+  tally() %>% 
+ggplot(aes(year,
+           n)) +
+  geom_col() +
+  theme_bw() +
+  ggtitle("Archaeology articles per year")
+```
+
+Let's look at the citations in each of these articles. As expected, the number of citations per year closely follows the distribution of articles per year.
+
+On the log-scaled plot we can see that we have several gaps in our data before 1975. Why is that?
+
+```{r}
+
+# df of refs with year that each ref appears, and ID of citing article
+library(stringr)
+library(purrrlyr)
+
+# get data frame with refs for each article
+# each row is a single citation,
+# with info of article that has that citation
+xx <-
+items_wth_refs %>%
+  by_row(..f = function(this_row){
+   unlist(str_split(this_row$refs, "\n"))
+  }) %>%
+  unnest(.out) %>%
+  # remove non-refs
+  filter(!grepl("^[A-Z0-9]{2} .*|^ER$", .out)) %>%
+  filter( .out != "")
+
+# how many citations per year?
+xxx <-
+xx %>%
+  group_by(year) %>%
+  tally()
+
+# plot, why do we have some gaps? in the 1970s?
+ggplot(xxx,
+       aes(year,
+            n)) +
+  geom_col() +
+  #scale_y_log10() +
+  theme_bw() +
+  ggtitle("Citations per year in archaeology articles")
+
+library(scales)
+ggplot(xxx,
+       aes(year,
+            n)) +
+  geom_col() +
+  scale_y_log10(breaks = trans_breaks('log10', function(x) 10^x),
+                  labels = trans_format('log10', math_format(10^.x))) +
+  theme_bw() +
+  ggtitle("Citations per year in archaeology articles (log scale)")
+```
+
+We can zoom in on one article, Binford's "Archaeology as Anthropology", published in 1962. The plot shows the proportion of all citations in each year that are Binford 1962. 
+
+At a glance, we have three phases, roughly, high-frequency citations during 1962-1980, medium frequency during 1980-1990, and low-frequency 1990-present.
+
+```{r}
+
+# age distribution of "Archaeology as Anthropology" citations, as a proportion
+# of all citations in each year
+binford_1962_cites_per_year <-
+  xx %>%
+  filter(grepl("BINFORD LR, 1962, AM ANTIQUITY, V28, P217,", .out)) %>%
+    group_by(year) %>%
+    summarise(count = n()) %>%
+    left_join(xxx, by = "year") %>%
+    mutate(prop = count / n) %>%
+    distinct(year, prop, n)
+
+# plot, why no citations throughout the 1970s?
+binford_1962_cites_per_year %>%
+  ggplot(aes(year, prop)) +
+  geom_col() +
+  theme_bw() +
+  ylab("Proportion of all citations per year") +
+  ggtitle("Citations per year of Binford 1962")
+```
+
+# Methods
+
+# Results
+
+# Discussion
+
+# Conclusion
+
+# Acknowledgements
+
+# References 
+
+### Colophon
+
+This report was generated on `r Sys.time()` using the following computational environment and dependencies: 
+
+```{r colophon, cache = FALSE}
+# which R packages and versions?
+devtools::session_info()
+```
+
+The current Git commit details are:
+
+```{r}
+# what commit is this file at? You may need to change the path value
+# if your Rmd is not in analysis/paper/
+git2r::repository("../..")
+```
