@@ -264,7 +264,7 @@ max_year <- max(xx$year)
 xx0 <- 
   xx %>% 
   filter(year >= 1975) %>% 
-  mutate(time_unit = max_year - year)
+  mutate(time_unit = year)
 
 ```
 
@@ -299,28 +299,41 @@ xx0 %>%
                                journal)) %>% 
   select(citing_paper,
          .out, 
-         time_unit) %>% 
+         time_unit) 
+
+
+refs_occurance_format1 <- 
+  refs_occurance_format %>% 
   group_by(.out) %>%
   mutate(min_age = min(time_unit), 
          max_age = max(time_unit),
          Status = "extinct") %>% 
-  rename(Species = .out,
-         trait = citing_paper
+  distinct(.out, 
+           min_age, 
+           max_age, 
+           Status)
+
+# drop items that are only cited in a single year
+refs_occurance_format2 <- 
+refs_occurance_format1 %>% 
+  rename(Species = .out
          ) %>% 
     select(Species,
            Status,
            min_age,
-           max_age,
-           trait) 
+           max_age) %>% 
+  mutate(span =  max_age - min_age) %>% 
+  filter(span != 0) %>% 
+  select(-span)
 
-head(refs_occurance_format)
+head(refs_occurance_format2)
 ```
 
 We can make a histogram showing the distribution of the number of years each cited article was cited for (artcle lifespan):
 
 ```{r}
 refs_occurance_format_hist <- 
-  refs_occurance_format %>% 
+  refs_occurance_format2 %>% 
   mutate(number_of_years_cited = max_age - min_age + 1)
 
 # ggplot(refs_occurance_format_hist,
@@ -378,7 +391,7 @@ From https://www.nature.com/articles/palcomms201619:
 
 The diversification of citations through time is modelled here as the product of both origination and extinction. The estimation of origination and extinction rates utilizes an underlying birth–death model, which assumes these processes are random events occurring through continuous time. The probability of events occurring at any given time is determined by parameters of the birth–death process, which express the expected number of origination (or extinction) events per lineage per units of time. Rates can vary through time by introducing rate shifts (Silvestro et al., 2014b; Stadler, 2011; Stadler, 2012).
 
-The first year that an article is cited is considered as an origination event, with the lastyear it was cited is characterized as an extinction event. 
+The first year that an article is cited is considered as an origination event, with the last year it was cited is characterized as an extinction event. To speed up the computations we will convert the _occurance_ format to a _lineage_ format, where each cited item only appears once in the table with its earliest and latest years of citation. 
 
 The next step is to prepare this occurance data frame for input into Python to compute estimations of the origination, extinction and preservation rates. This is accomplished by calling the `extract.ages` function which extracts the ages and creates a readable python file: 
 
@@ -388,12 +401,17 @@ library(pyrater)
 # can't do it with occurance format: Error: cannot allocate vector of size 29.5 Mb 
 # so let's use the lineage format, where each citation only appears once
 refs_lineage_format <- 
-  refs_occurance_format %>% 
+  refs_occurance_format2 %>% 
   group_by(Species) %>% 
   summarise(first_year = min(min_age),
-            last_year = max(max_age))
+            last_year = max(max_age)) %>% 
+  mutate(taxa = "NA") %>% 
+  select(taxa, 
+         Species,
+         first_year,
+         last_year)
 
-refs_lineage_format$clade <- 0
+# must be  c("clade", "species", "min_age", "max_age")
 
 refs_species_pyrate_data <- lineage_pyrate(refs_lineage_format)
 
@@ -414,7 +432,7 @@ write.table(refs_species_pyrate_data$species_pyrate_data,
             row.names = FALSE)
 ```
 
-A python file titled `occurrence_pyrate_data_PyRate.py` should have been created and available in the working directory.
+A python file titled `lineage_pyrate_data_PyRate.py` should have been created and available in the working directory.
 
 # Summary Plots
 
@@ -434,11 +452,132 @@ Prior to starting the PyRate analysis, it is good practice to get a sense of the
 summary_plots(refs_species_pyrate_data$species_pyrate_data, 5) 
 ```
 
+### Choosing the best underlying model
+
+From https://www.nature.com/articles/palcomms201619 :
+
+The first decision to be made in the analysis of cultural data is whether a birth-death model is an appropriate model for the data under analysis. In this analysis, a birth-death model refers to a continuous-time Markov process where in each time step a the unit of analysis (typically a lineage or new product) can either originate (birth) or go extinct (death). Being that the birth-death model is an example of a continuous-time Markov process, the emergence or discontinuation of a lineage in the future depends on the current state of the model in the previous time step. In PyRate, if a birth-death model is favored, this means that the origination or extinction of a cultural lineage or material culture product is influenced by the existing number of lineages in the previous time step. This can be seen as suggestive of incremental innovation where the emergence of a new lineage or product is strongly influenced by the previous lineage or products available, likely through minor modifications of existing traits. A birth-death model is generally suggestive of a strong inheritance pattern between generations of cultural lineages or artifacts. (For example, a new car model that is a combination of traits from other already existing car models).   
+
+In contrast to many biological systems, where birth-death models have been shown to be very reliable, it is not always known if a birth-death model is appropriate for cultural data.  An alternative model, developed for this research, is an immigration-death model. In this model, the emergence or discontinuation of a lineage or product is independent of the previous states of the model. This models has an underlying Poisson distribution which highlights that the emergence or discontinuation of a cultural lineage or product would occur randomly in each time step.  This can be seen as suggestive of more radical innovation or horizontal transmission of traits from individuals or technologies from outside of the direct lineages. (For example, a new car model that has novel traits that were developed in the airline industry). 
+
+In order to test between these two models, the data set will be analyzed in two separate analysis using the mBDI function In order to execute the analysis, the following commands will execute Python code. You need to have Python 2.7 installed for this to work. You can download this from <https://www.python.org/>. You will also need numpy and scipy for your Python installation. The `mBDI` function will try to guess where Python is on you computer, but if it guesses wrong and return an error, you may need to set the `path_to_python` argument to the `mBDI` function to ensure that it can find where Python is installed on your computer. See `?mBDI` for more details. 
+
+Upon executing these commands, a new folder will be created in your working directory  called `pyrate_mcmc_logs`.
+
+```{r, eval=TRUE}
+
+# set the number of generations. 10,000,000 generations = 10 hrs
+
+n_generations <- 10000
+
+library(pyrater)
+
+# birth-death model
+mBDI(path = "C:/python27/python.exe",
+     n_generations = n_generations, 
+     model = 0, 
+     data_format = "lineage",
+     input_file = "lineage_pyrate_data.txt")
+# elapsed time: 3544.91 sec
+
+# immigration-death model
+mBDI(path = "C:/python27/python.exe",
+     n_generations = n_generations, 
+     model = 1, 
+     data_format = "lineage", 
+     input_file = "lineage_pyrate_data.txt") 
+#elapsed time: 1867.96 " 
+```
 
 
-  
-  
+This analysis uses the default settings of samples every 1,000 generations for 10,000,000 generations.  Details about changes to PyRate default settings can be found in Silvestro et al. 2014. If access to a computing cluster is available, this is the preferred option. To reduce the run time of the analysis, simply adjust the number of generations from 10 million to 1 million.  
 
+# Visualizing the Rates of Origination and Extinction
+
+Once the BDMCMC runs are finished, one can easy view the a rate through time plot by using the following commands:
+
+```{r, eval=TRUE}
+
+pyrate_plot(path_to_python = "C:/python27/python.exe",
+            input_file = "pyrate_mcmc_logs/lineage_pyrate_data_0_BD_marginal_rates.log")
+
+
+```
+
+These plots will use the default plot setting in PyRate and create both an R file and pdf with the rate-through-time plots. Open the pdf and check out the rates of origination and extinction through time!
+
+We can redraw these plots in R:
+
+```{r, eval=TRUE}
+source("pyrate_mcmc_logs/lineage_pyrate_data_0_BD_marginal_rates_RTT.r")
+age_rev <-
+  2017 + age # adjust for the most recent date in each of the datasets
+
+# Origination
+plot(
+  age_rev,
+  L_hpd_M95,
+  type = 'n',
+  ylim = c(0, max(L_hpd_M95)),
+  xlim = c(min(age_rev), max(age_rev)),
+  xlab = "Years",
+  ylab = "Rate of Event Per Lineage Per Time Unit",
+  main = "Origination"
+)
+plot_RTT(age_rev, L_hpd_M95, L_hpd_m95, L_mean, "navyblue")
+
+# Extinction
+plot(
+  age_rev,
+  M_hpd_M95,
+  type = 'n',
+  ylim = c(0, max(M_hpd_M95)),
+  xlim = c(min(age_rev), max(age_rev)),
+  xlab = "Years",
+  ylab = "Rate of Event Per Lineage Per Time Unit",
+  main = "Extinction"
+)
+plot_RTT(age_rev, M_hpd_M95, M_hpd_m95, M_mean, "red")
+
+# Net Diversification
+plot(
+  age_rev,
+  R_hpd_M95,
+  type = 'n',
+  ylim = c(min(R_hpd_m95), max(R_hpd_M95)),
+  xlim = c(min(age_rev), max(age_rev)),
+  xlab = "Years",
+  ylab = "Rate of Event Per Mineage Per Time Unit",
+  main = "Net Diversification"
+)
+plot_RTT(age_rev, R_hpd_M95, R_hpd_m95, R_mean, "darkgreen")
+```
+
+# Model testing between the BD/ID models
+
+It is important to note that we are unable to quantitatively test whether a birth-death or immigration-death model best fits our data from the plotting of origination, extinction and net diversification rates.  In order to identify the best-fitting model we need to model test between all the most likely models. 
+
+To determine the best fitting model, we want to first know how many different rates fit our data.  It is unlikely that the rates of origination and extinction for cultural data through time are constant, but we don't know how many rates best fit the data that we have.  In order to determine this, run the following commands
+
+```{r, eval=TRUE}
+
+one_BD <- mProb(path_to_python = "C:/python27/python.exe",
+                input_file = "pyrate_mcmc_logs/lineage_pyrate_data_0_BD_mcmc.log")
+
+
+mProb(path_to_python = "C:/python27/python.exe",
+      input_file = "pyrate_mcmc_logs/lineage_pyrate_data_0_ID_mcmc.log")
+```
+
+The input file paths are: 
+
+pyrate_mcmc_logs/occurrence_pyrate_data_1BD_mcmc.log
+pyrate_mcmc_logs/occurrence_pyrate_data_1ID_mcmc.log
+pyrate_mcmc_logs/lineage_pyrate_data_1BD_mcmc.log
+pyrate_mcmc_logs/lineage_pyrate_data_1ID_mcmc.log
+
+
+PyRate will provide a breakdown of the probability of most likely rate models for both speciation and extinction. In addition the best configuration of rates of also provided. It is probably best to open a spreadsheet (excel or Google sheets) and record these values. 
 
 # Methods
 
