@@ -3,13 +3,18 @@
 modelextinctionideas
 ====================
 
-The goal of modelextinctionideas is to ...
+[![Binder](http://mybinder.org/badge.svg)](http://mybinder.org/v2/gh/benmarwick/modelextinctionideas/master)
+
+Ben Marwick, University of Washington
+Erik Gjesfjeld, University of Cambridge
+
+The goal of modelextinctionideas is to make available the code and data for our SAA2018 poster presentation "Modelling the innovation and extinction of archaeological ideas"
 
 ### Citation
 
 Please cite this compendium as:
 
-> Authors, (2017). *Title of compendium*. Accessed 20 Sep 2017. Online at <https://doi.org/xxx/xxx>
+> Marwick, B and E. Gjesfjeld, (2018). *Research Compendium for 'Modelling the innovation and extinction of archaeological ideas'*. Accessed 26 Jan 2018. Online at <https://doi.org/xxx/xxx>
 
 ### Installation
 
@@ -20,13 +25,19 @@ You can install modelextinctionideas from github with:
 devtools::install_github("benmarwick/modelextinctionideas")
 ```
 
+### Run the code in your broswer with Binder
+
+Click on the pink binder button at the top, once inside Jupyter Notebook, RStudio Server should be an option under the menu "New" in the top right. Click on "New" in the top right, and at the bottom will be `RStudio Session`. Click that and your RStudio session will begin momentarily.
+
+Download the files to your desktop, open `modelextinctionideas.Rproj` in RStudio, install the `modelextinctionideas` package (CTRL+SHIFT+B) then open `analysis/paper/paper.Rmd` and knit the Rmd to run the code and generate the results and plots found in the paper.
+
 ### Licenses
 
-**Text and figures:** [CC-BY-4.0](http://creativecommons.org/licenses/by/4.0/)
+**Text and figures: ** [CC-BY-4.0](http://creativecommons.org/licenses/by/4.0/)
 
-**Code:** See the [DESCRIPTION](DESCRIPTION) file
+**Code: ** See the [DESCRIPTION](DESCRIPTION) file
 
-**Data:** [CC-0](http://creativecommons.org/publicdomain/zero/1.0/) attribution requested in reuse
+**Data :** [CC-0](http://creativecommons.org/publicdomain/zero/1.0/) attribution requested in reuse
 
 ### Contributions
 
