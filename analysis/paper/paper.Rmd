@@ -1,8 +1,8 @@
 ---
-title: "Title Goes Here"
+title: "Modelling the innovation and extinction of archaeological ideas"
 author:
-  - author 1
-  - author 2
+  - Ben Marwick, University of Washington
+  - Erik Gjesfjeld, University of Cambridge 
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: 
     bookdown::html_document2:
@@ -36,7 +36,7 @@ library(modelextinctionideas)
 
 # Introduction
 
-Here is a citation [@Marwick2017]
+The history of archaeology is often told as a sequence of prominent individuals and their publications. Due to the focus on big names and big papers, the diversity of archaeological publications is often underestimated. Here we introduce a quantitative method that illuminates historical trends in archaeological writing by investigating a large number of journal articles. We use a Bayesian framework developed for estimating speciation, extinction, and preservation rates from incomplete fossil data. We model archaeological ideas within this framework by equating citations of archaeological literature to occurrences in the fossil record. We obtained reference lists for 12,000 journal articles published between 1975 and 2017 and explored the chronological distribution of cited papers to identify periods of innovation and extinction. We discuss how our modeling approach helps to quantify the diversification of archaeological publications and our broader understanding about the history of archaeological thought.
 
 # Background
 
@@ -107,7 +107,6 @@ library(purrrlyr)
 xx <- readRDS( paste0(here::here(), "/analysis/data/derived_data/items_wth_refs.rds"))
 ```
 
-
 ## Basic exploration of the data
 
 ```{r}
@@ -118,11 +117,14 @@ hm_items <- nrow(items_wth_refs) # 12133
 # span what time period?
 time_range <- range(items_wth_refs$year) # 1905 2017
 
+# how many 1975-2017
+hm_items_1975 <- items_wth_refs %>% filter(year >= 1975) %>% nrow
+
 ```
 
-We have `r hm_items` articles in our study. The publication dates range from `r time_range[1]` to  `r time_range[2]`. The bibliographic data for these articles was obtained from a search of Clarivate Analytics Web of Science, using the keyword 'archaeolog' and filtering the results to keep only research articles. 
+We have `r prettyNum(hm_items, big.mark = ",")` articles in our study. The publication dates range from `r time_range[1]` to  `r time_range[2]`. The bibliographic data for these articles was obtained from a search of Clarivate Analytics Web of Science, using the keyword 'archaeolog' and filtering the results to keep only research articles. 
 
-The distribution of articles is strongly skewed to more recent years, with a rapid increase after the mid-2000s. For the rest of our analysis we're going to limit the time frame to 1975-207 because the data from beofre 1975 is incomplete for some key journals, such as _American Antiquity_.
+The distribution of articles is strongly skewed to more recent years, with a rapid increase after the mid-2000s. For the rest of our analysis we're going to limit the time frame to the `r prettyNum(hm_items_1975, big.mark = ",")` published during 1975-2017 because the data from before 1975 is incomplete for some key journals, such as _American Antiquity_.
 
 ```{r}
 items_wth_refs %>% 
@@ -172,8 +174,8 @@ ggplot(xxx,
        aes(year,
             n)) +
   geom_col() +
-  scale_y_log10(breaks = trans_breaks('log10', function(x) 10^x),
-                  labels = trans_format('log10', math_format(10^.x))) +
+  #scale_y_log10(breaks = trans_breaks('log10', function(x) 10^x),
+  #                labels = trans_format('log10', math_format(10^.x))) +
   theme_bw() +
   ggtitle("Citations per year in archaeology articles (since 1975)")
 ```
@@ -184,13 +186,19 @@ With such a large data set we can answer a few basic interesting questions, for 
 - What is the most cited paper?    
 - What is the most cited paper per decade?
 
+Here are the top ten most cited items overall:
+
 ```{r}
 most_cited <- 
   xx %>% 
   filter(year >= 1975) %>% 
   count(.out, sort = TRUE)  %>% 
   slice(1:10)
+
+knitr::kable(most_cited)
 ```
+
+And here are the most cited items per decade (there is a tie for the 1970-1980 data):
 
 ```{r}
 # from https://gist.github.com/benmarwick/5826552
@@ -212,8 +220,9 @@ most_cited_per_decade <-
   group_by(decade) %>% 
   count(.out, sort = TRUE) %>% 
   filter(n == max(n))
-```
 
+knitr::kable(most_cited_per_decade)
+```
 
 We can zoom in on one article, Binford's "Archaeology as Anthropology", published in 1962. The plot shows the proportion of all citations in each year that are Binford 1962. 
 
@@ -222,7 +231,6 @@ At a glance, we have three phases, roughly, high-frequency citations during 1962
 We can model rates of extinction using tools from palaeontology. 
 
 ```{r}
-
 # age distribution of "Archaeology as Anthropology" citations, as a proportion
 # of all citations in each year
 binford_1962_cites_per_year <-
@@ -270,7 +278,9 @@ xx0 <-
 
 ### Formatting Ocurrence Data for PyRate
 
-Data sets in occurrence format, such as we have here, provide the opportunity to incoporate uncertainty about the preservation of the observations when analyzing origination and extinction rates. If a researcher does not have a high level of certainty that the dates of first and last occurrence are correct, such as is often the case with fossils or artifacts,  preservation can be informative [@silvestro2014].
+From https://www.nature.com/articles/palcomms201619 : 
+
+Data sets in occurrence format, such as we have here, provide the opportunity to incoporate uncertainty about the preservation of the observations when analyzing origination and extinction rates. If a researcher does not have a high level of certainty that the dates of first and last occurrence are correct, such as is often the case with fossils or artifacts,  preservation can be informative.
 
 We need a data frame with four columns:
 
@@ -329,7 +339,7 @@ refs_occurance_format1 %>%
 head(refs_occurance_format2)
 ```
 
-We can make a histogram showing the distribution of the number of years each cited article was cited for (artcle lifespan):
+We can make a histogram showing the distribution of the number of years each cited article was cited for (article lifespan):
 
 ```{r}
 refs_occurance_format_hist <- 
@@ -372,16 +382,26 @@ refs_occurance_format_hist %>%
   slice(1)
 
 refs_occurance_format_hist_year %>% 
+  mutate(titles  = str_wrap(str_trunc(Species, 40), 10)) %>% 
   mutate(end_year = year + number_of_years_cited) %>% 
+  mutate(end_year = if_else(end_year > 2017, 2017, end_year)) %>% 
   ungroup() %>% 
-  select(Species, year, end_year) %>% 
+  select(titles, year, end_year) %>% 
   ggplot() +
-  geom_linerange(aes(reorder(x = Species, year),
+  geom_linerange(aes(x = reorder(titles, year),
                      ymin = year,
-                     ymax = end_year)) +
-    coord_flip() +
+                     ymax = end_year),
+                 size = 2) +
+  geom_point(aes(x = reorder(titles, year),
+                 year),
+             size = 4) +
+    geom_point(aes(x = reorder(titles, year),
+                 end_year),
+               size = 4) +
   ylim(c(1975, 
-         2019)) 
+         2017)) +
+  coord_flip()
+ 
 
 ```
 
@@ -464,7 +484,7 @@ In order to test between these two models, the data set will be analyzed in two 
 
 Upon executing these commands, a new folder will be created in your working directory  called `pyrate_mcmc_logs`.
 
-```{r, eval=TRUE}
+```{r, eval=FALSE}
 
 # set the number of generations. 10,000,000 generations = 10 hrs
 
@@ -496,7 +516,7 @@ This analysis uses the default settings of samples every 1,000 generations for 1
 
 Once the BDMCMC runs are finished, one can easy view the a rate through time plot by using the following commands:
 
-```{r, eval=TRUE}
+```{r, eval=FALSE}
 
 pyrate_plot(path_to_python = "C:/python27/python.exe",
             input_file = "pyrate_mcmc_logs/lineage_pyrate_data_0_BD_marginal_rates.log")
@@ -509,7 +529,8 @@ These plots will use the default plot setting in PyRate and create both an R fil
 We can redraw these plots in R:
 
 ```{r, eval=TRUE}
-source("pyrate_mcmc_logs/lineage_pyrate_data_0_BD_marginal_rates_RTT.r")
+source(paste0(here::here(), "/pyrate_mcmc_logs/lineage_pyrate_data_0_BD_marginal_rates_RTT.r"))
+
 age_rev <-
   2017 + age # adjust for the most recent date in each of the datasets
 
@@ -559,7 +580,7 @@ It is important to note that we are unable to quantitatively test whether a birt
 
 To determine the best fitting model, we want to first know how many different rates fit our data.  It is unlikely that the rates of origination and extinction for cultural data through time are constant, but we don't know how many rates best fit the data that we have.  In order to determine this, run the following commands
 
-```{r, eval=TRUE}
+```{r, eval=FALSE}
 
 one_BD <- mProb(path_to_python = "C:/python27/python.exe",
                 input_file = "pyrate_mcmc_logs/lineage_pyrate_data_0_BD_mcmc.log")
