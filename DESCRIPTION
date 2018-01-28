@@ -9,4 +9,13 @@ Encoding: UTF-8
 LazyData: true
 URL: https://github.com/benmarwick/modelextinctionideas
 BugReports: https://github.com/benmarwick/modelextinctionideas/issues
-Imports: bookdown
+Imports: bookdown,
+    devtools (>= 1.13.4),
+    dplyr (>= 0.7.4),
+    git2r (>= 0.21.0),
+    here (>= 0.1),
+    knitr (>= 1.18),
+    purrrlyr (>= 0.0.2),
+    scales (>= 0.5.0.9000),
+    stringr (>= 1.2.0),
+    tidyverse (>= 1.2.1)
