@@ -15,7 +15,7 @@ RUN cd ~ && wget https://github.com/github/hub/releases/download/v2.2.9/hub-linu
 
 # install R packages
 RUN . etc/environment \
-&& r -e 'devtools::install_github(c("rstudio/bookdown","1beb/RGoogleDrive"))' \
+&& r -e 'devtools::install_github("rstudio/bookdown")' \
 && r -e 'warnings()'
 
 RUN . etc/environment \
@@ -24,15 +24,6 @@ RUN . etc/environment \
 	httr \
 	kableExtra \
 && r -e 'warnings()'
-
-# add caddy web server
-RUN curl https://getcaddy.com | bash
-# \
-#&& echo '#!/bin/bash' >> runcaddy.sh \
-#&& echo "mkdir /home/oski/_book/ ; cd /home/oski/_book/ && caddy" >> runcaddy.sh \
-#&& echo '#!/bin/bash' >> start.sh \
-#&& echo "(/init) & sleep 10 && /runcaddy.sh" >> start.sh \
-#&& chmod u+x /runcaddy.sh /start.sh
 
 # fun with line endings
 RUN git config --global core.autocrlf input
