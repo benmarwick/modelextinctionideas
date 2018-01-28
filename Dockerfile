@@ -14,9 +14,9 @@ RUN cd ~ && wget https://github.com/github/hub/releases/download/v2.2.9/hub-linu
 && hub version
 
 # install R packages
-RUN . etc/environment \
-&& r -e 'devtools::install_github("rstudio/bookdown")' \
-&& r -e 'warnings()'
+# RUN . etc/environment \
+# && r -e 'devtools::install_github("rstudio/bookdown")' \
+# && r -e 'warnings()'
 
 RUN . etc/environment \
 && install2.r --repos $MRAN --deps TRUE \
