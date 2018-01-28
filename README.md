@@ -3,7 +3,7 @@
 modelextinctionideas
 ====================
 
-[![Binder](http://mybinder.org/badge.svg)](http://mybinder.org/v2/gh/benmarwick/modelextinctionideas/master)
+[![Binder](http://mybinder.org/badge.svg)](https://mybinder.org/v2/gh/benmarwick/modelextinctionideas/master?urlpath=rstudio)
 
 Ben Marwick, University of Washington
 Erik Gjesfjeld, University of Cambridge
@@ -14,7 +14,7 @@ The goal of modelextinctionideas is to make available the code and data for our 
 
 Please cite this compendium as:
 
-> Marwick, B and E. Gjesfjeld, (2018). *Research Compendium for 'Modelling the innovation and extinction of archaeological ideas'*. Accessed 26 Jan 2018. Online at <https://doi.org/xxx/xxx>
+> Marwick, B and E. Gjesfjeld, (2018). *Research Compendium for 'Modelling the innovation and extinction of archaeological ideas'*. Accessed 28 Jan 2018. Online at <https://doi.org/xxx/xxx>
 
 ### Installation
 
@@ -29,7 +29,7 @@ devtools::install_github("benmarwick/modelextinctionideas")
 
 Click on the pink binder button at the top, once inside Jupyter Notebook, RStudio Server should be an option under the menu "New" in the top right. Click on "New" in the top right, and at the bottom will be `RStudio Session`. Click that and your RStudio session will begin momentarily.
 
-Download the files to your desktop, open `modelextinctionideas.Rproj` in RStudio, install the `modelextinctionideas` package (CTRL+SHIFT+B) then open `analysis/paper/paper.Rmd` and knit the Rmd to run the code and generate the results and plots found in the paper.
+In RStudio, open `modelextinctionideas.Rproj` install the `modelextinctionideas` package (press CTRL+SHIFT+B or click Build -&gt; Install and restart) then open `analysis/paper/paper.Rmd` and knit the Rmd to run the code and generate the results and plots found in the paper.
 
 ### Licenses
 

@@ -40,7 +40,7 @@ devtools::install_github("benmarwick/modelextinctionideas")
 
 Click on the pink binder button at the top, once inside Jupyter Notebook, RStudio Server should be an option under the menu "New" in the top right. Click on "New" in the top right, and at the bottom will be `RStudio Session`. Click that and your RStudio session will begin momentarily.
 
-Download the files to your desktop, open `modelextinctionideas.Rproj` in RStudio, install the `modelextinctionideas` package (CTRL+SHIFT+B) then open `analysis/paper/paper.Rmd` and knit the Rmd to run the code and generate the results and plots found in the paper. 
+In RStudio, open `modelextinctionideas.Rproj` install the `modelextinctionideas` package (press CTRL+SHIFT+B or click Build -> Install and restart) then open `analysis/paper/paper.Rmd` and knit the Rmd to run the code and generate the results and plots found in the paper. 
 
 ### Licenses
 
