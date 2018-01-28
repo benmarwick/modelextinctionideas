@@ -1,4 +1,4 @@
-FROM rocker/binder:3.4.2
+FROM w201rdada/portfolio:fa17
 
 USER root
 COPY . /home/rstudio/
