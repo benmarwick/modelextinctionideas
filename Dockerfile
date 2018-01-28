@@ -20,9 +20,7 @@ RUN . etc/environment \
 
 RUN . etc/environment \
 && install2.r --repos $MRAN --deps TRUE \
-	stargazer \
 	httr \
-	kableExtra \
 && r -e 'warnings()'
 
 # fun with line endings
