@@ -23,8 +23,6 @@ RUN . etc/environment \
 	httr \
 && r -e 'warnings()'
 
-RUN curl https://getcaddy.com | bash
-
 # fun with line endings
 RUN git config --global core.autocrlf input
 
