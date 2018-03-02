@@ -5,7 +5,7 @@ modelextinctionideas
 
 [![Binder](http://mybinder.org/badge.svg)](https://mybinder.org/v2/gh/benmarwick/modelextinctionideas/master?urlpath=rstudio)
 
-Ben Marwic (University of Washington) and Erik Gjesfjeld (University of Cambridge)
+Ben Marwick (University of Washington) and Erik Gjesfjeld (University of Cambridge)
 
 The goal of modelextinctionideas is to make available the code and data for our SAA2018 poster presentation "Modelling the innovation and extinction of archaeological ideas"
 
@@ -13,7 +13,7 @@ The goal of modelextinctionideas is to make available the code and data for our 
 
 Please cite this compendium as:
 
-> Marwick, B and E. Gjesfjeld, (2018). *Research Compendium for 'Modelling the innovation and extinction of archaeological ideas'*. Accessed 28 Jan 2018. Online at <https://doi.org/xxx/xxx>
+> Marwick, B and E. Gjesfjeld, (2018). *Research Compendium for 'Modelling the innovation and extinction of archaeological ideas'*. Accessed 02 Mar 2018. Online at <https://doi.org/xxx/xxx>
 
 ### Installation
 
