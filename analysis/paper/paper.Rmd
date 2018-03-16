@@ -215,7 +215,7 @@ dat1 <- data_frame(year = year1,
 my_df <- left_join(xx, dat1, by = 'year')
 
 most_cited_per_decade <- 
-  my_df %>% 
+   my_df %>% 
   filter(year >= 1975) %>% 
   group_by(decade) %>% 
   count(.out, sort = TRUE) %>% 
