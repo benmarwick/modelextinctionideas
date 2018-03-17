@@ -7,6 +7,9 @@ For the citations to be useful in the modelling, we need to put them into groups
 How many unique citations do we have?
 
 ```{r}
+# If we are resuming the analysis we can just start from here, and read in the data
+# frame of citations.
+xx <- readRDS( paste0(here::here(), "/analysis/data/derived_data/items_wth_refs.rds"))
 length(unique(xx$.out))
 ```
 
@@ -372,7 +375,7 @@ This analysis uses the default settings of samples every 1,000 generations for 1
 
 Once the BDMCMC runs are finished, one can easy view the a rate through time plot by using the following commands:
 
-```{r, eval=FALSE}
+```{r, eval=F}
 
 pyrate_plot(path_to_python = "C:/python27/python.exe",
             input_file = "pyrate_mcmc_logs/lineage_pyrate_data_0_BD_marginal_rates.log")
@@ -380,7 +383,7 @@ pyrate_plot(path_to_python = "C:/python27/python.exe",
 
 We can redraw these plots in R:
 
-```{r, eval=TRUE}
+```{r, eval=F}
 source(paste0(here::here(), "/pyrate_mcmc_logs/lineage_pyrate_data_0_BD_marginal_rates_RTT.r"))
 
 age_rev <-
