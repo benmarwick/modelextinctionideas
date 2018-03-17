@@ -520,8 +520,6 @@ Once the BDMCMC runs are finished, one can easy view the a rate through time plo
 
 pyrate_plot(path_to_python = "C:/python27/python.exe",
             input_file = "pyrate_mcmc_logs/lineage_pyrate_data_0_BD_marginal_rates.log")
-
-
 ```
 
 These plots will use the default plot setting in PyRate and create both an R file and pdf with the rate-through-time plots. Open the pdf and check out the rates of origination and extinction through time!
