@@ -40,13 +40,75 @@ The history of archaeology is often told as a sequence of prominent individuals 
 
 # Background
 
-```{r load-data}
+```{r load-data, eval = FALSE}
 
 # #read in the data, resulting from the searchof Web of Science for TOPIC = "Archaeology", document type = "Article", all years
 
+# ingest ---------------------------------
+
+# read in the data, TOPIC = "Archaeology", document type = "Article", all years
+saa2018_files <- dir("../data/raw_data/wos/",  full.names = TRUE)
+
+text <- map(saa2018_files, ~read_file(.x, locale = locale(encoding = "latin1")))
+
+# split on article delimiter provided by WOS
+library(stringr)
+items <- unlist(str_split(text, pattern = "\nPT J\n"))
+# get rid of the advertising
+items <- str_replace_all(items, "FN Clarivate Analytics Web of Science\nVR 1.0", "")
+items <- items[items != ""]
+
+length(items) # each item is one article
+
+# function to automate getting the variables out of each item
+extractor <- function(i){
+
+  # debug with
+  # i <- items[[3]]
+
+  authors =     gsub(".*AU *(.*?) *\nAF .*", "\\1", i)
+  authors_n =   str_count(authors, "\n") + 1
+  title =       gsub(".*\nTI *(.*?) *\nSO .*", "\\1", i)
+  title_n =     str_count(title, " ") - 1
+  journal =     gsub(".*\nSO *(.*?) *\nLA .*", "\\1", i)
+  abstract =    gsub(".*\nAB *(.*?) *\nC1 .*", "\\1", i)
+  refs =        gsub(".*\nCR *(.*?) *\nNR .*", "\\1", i)
+  refs_n =      as.numeric(gsub(".*\nNR *(.*?) *\nTC .*", "\\1", i))
+  pages_n =     as.numeric(gsub(".*\nPG *(.*?) *\nWC .*", "\\1", i))
+  year =        as.numeric(gsub(".*\nPY *(.*?) *\nVL .*", "\\1", i))
+
+  dplyr::data_frame(
+    authors =         authors,
+    authors_n =       authors_n,
+    title =           title ,
+    title_n =         title_n,
+    journal =         journal,
+    abstract  =       abstract,
+    refs =            refs    ,
+    refs_n =          refs_n ,
+    pages_n =         pages_n,
+    year =            year
+  )
+}
+
+
+# # for debugging, to find the items that break the fn
+# for(i in seq_len(length(items))){
+#   extractor(items[i])
+#   print(i)
+# }
+
+
+
+# this will take a few mins
+items_df <- map_df(items, ~extractor(.x))
+
+saveRDS(items_df, here::here("analysis/data/SAA2018/saa2018-data-df.rds"))
+
 # reload --------------------------------------------------------------------
+
 # this is the fast way to resume:
-items_df <- readRDS(paste0(here::here(),"/analysis/data/derived_data/saa2018-data-df.rds"))
+items_df <- readRDS(here::here("analysis/data/derived_data/saa2018-data-df.rds"))
 
 library(tidyverse)
 items_df <-
@@ -70,38 +132,80 @@ library(purrrlyr)
 # each row is a single citation,
 # with info of article that has that citation
 # the cited article is in the .out column
-# xx <-
-# items_wth_refs %>%
-#   by_row(..f = function(this_row){
-#    unlist(str_split(this_row$refs, "\n"))
-#   }) %>%
-#   unnest(.out) %>%
-#   # remove non-refs
-#   filter(!grepl("^[A-Z0-9]{2} .*|^ER$", .out)) %>%
-#   filter( .out != "") %>%
-#   mutate(.out = trimws(toupper(.out))) %>%
-#   mutate(.out = str_replace_all(.out, "[[:punct:]]", ""))
+xx <-
+items_wth_refs %>%
+  by_row(..f = function(this_row){
+   unlist(str_split(this_row$refs, "\n"))
+  }) %>%
+  unnest(.out) %>%
+  # remove non-refs
+  filter(!grepl("^[A-Z0-9]{2} .*|^ER$", .out)) %>%
+  filter( .out != "") %>%
+  mutate(.out = trimws(toupper(.out))) %>%
+  mutate(.out = str_replace_all(.out, "[[:punct:]]", ""))
 # 
 # # extract year of cited work
-# xx1 <- 
-# xx %>% 
-#   mutate(cited_year = as.numeric(str_extract(.out, "[0-9]{4}"))) %>% 
-#   mutate(cited_year = ifelse(cited_year %in% 1900:2017, 
-#                              cited_year,
-#                              NA))
+xx1 <-
+xx %>%
+  mutate(cited_year = as.numeric(str_extract(.out, "[0-9]{4}"))) %>%
+  mutate(cited_year = ifelse(cited_year %in% 1900:2017,
+                             cited_year,
+                             NA))
 
 # make sure that a cited item has a year that is earlier than the year of the
 # item that cited it. Because sometimes there are in press items with the following
 # year, we +1 
-# xx2 <- 
-#   xx1 %>% 
-#   filter(cited_year <= year + 1)
+xx2 <-
+  xx1 %>%
+  filter(cited_year <= year + 1)
+
+# OpenRefine methods for merging similar citations ----------------------------
+
+# many citations that are actually the same have slight differences in how they appear
+# we cna use OpenRefine methods to identify partial string matches
+
+library(refinr)
+
+x <-  xx2$.out 
+
+x_refin <- 
+x %>% 
+  refinr::key_collision_merge() %>% 
+  refinr::n_gram_merge()
+
+# Create df for comparing the original values to the edited values.
+inspect_results <- 
+  data_frame(original_values = x, 
+             edited_values = x_refin) %>% 
+  mutate(equal = original_values == edited_values)
+
+only_different <-  inspect_results[!inspect_results$equal, c("original_values", "edited_values")]
+
+# update full set of records of citations with the merged ones
+xx3 <- 
+xx2 %>% 
+  left_join(inspect_results,
+            by = c(".out" = "original_values")) %>% 
+  distinct(authors, 
+           authors_n, 
+           title, 
+           title_n, 
+           journal, 
+           refs_n, 
+           pages_n, 
+           abstract, 
+           year, 
+           cited_year,
+           edited_values) %>% 
+  mutate(.out = edited_values)  %>% 
+  select(-edited_values)
 
 # # # # save this as rds to save time
-#  saveRDS(xx2,
-#            paste0(here::here(), "/analysis/data/derived_data/items_wth_refs.rds"))
+saveRDS(xx3, here::here("analysis/data/derived_data/items_wth_refs.rds"))
+```
 
 
+```{r}
 # If we are resuming the analysis we can just start from here, and read in the data
 # frame of citations.
 xx <- readRDS( paste0(here::here(), "/analysis/data/derived_data/items_wth_refs.rds"))
@@ -120,9 +224,11 @@ time_range <- range(items_wth_refs$year) # 1905 2017
 # how many 1975-2017
 hm_items_1975 <- items_wth_refs %>% filter(year >= 1975) %>% nrow
 
+# how many unique citations?
+how_many_unique_citations<- length(unique(xx$.out))
 ```
 
-We have `r prettyNum(hm_items, big.mark = ",")` articles in our study. The publication dates range from `r time_range[1]` to  `r time_range[2]`. The bibliographic data for these articles was obtained from a search of Clarivate Analytics Web of Science, using the keyword 'archaeolog' and filtering the results to keep only research articles. 
+We have `r prettyNum(hm_items, big.mark = ",")` articles in our study. The publication dates range from `r time_range[1]` to  `r time_range[2]`. The bibliographic data for these articles was obtained from a search of Clarivate Analytics Web of Science, using the keyword 'archaeolog' and filtering the results to keep only research articles. We have `r how_many_unique_citations` unique citations. 
 
 The distribution of articles is strongly skewed to more recent years, with a rapid increase after the mid-2000s. For the rest of our analysis we're going to limit the time frame to the `r prettyNum(hm_items_1975, big.mark = ",")` published during 1975-2017 because the data from before 1975 is incomplete for some key journals, such as _American Antiquity_.
 
@@ -147,6 +253,53 @@ ggplot(aes(year,
   theme_bw() +
   ggtitle("Archaeology articles per year (after 1975)") +
   labs(caption = "Data from Clarivate Analytics Web of Science")
+```
+
+How many citations per article over time?
+
+```{r}
+citations_per_year <- 
+xx %>% 
+  filter(year >= 1975) %>% 
+  group_by(abstract, year) %>% 
+  tally() %>%
+  ungroup() %>% 
+  select(year, n)
+
+mean_citations_per_year <- 
+xx %>% 
+  filter(year >= 1975) %>% 
+  group_by(abstract, year) %>% 
+   tally() %>%
+  group_by(year) %>% 
+  summarise(mean_cites = mean(n, na.rm = TRUE)) %>%
+  ungroup() 
+
+citations_per_year_line <- 
+ggplot() + 
+  geom_line(data = mean_citations_per_year,
+            aes(year, mean_cites)) +
+  theme_bw(base_size = 15) +
+  ylab("Mean citations/paper")
+
+  
+ggplot(citations_per_year, 
+       aes(year, 
+             n)) + 
+  geom_boxplot(aes(group = year)) +
+  theme_minimal(base_size = 15) +
+  ylab("Total citations/paper") +
+  annotation_custom(grob = ggplotGrob(citations_per_year_line),
+                    xmin = 1975,
+                    xmax = 1995,
+                    ymin = 300,
+                    ymax = 600)
+
+ggsave(filename = here::here("analysis/figures/citations_per_year_boxplot_lineplot.png"),
+       h = 7,
+       w = 10)
+
+
 ```
 
 
@@ -186,14 +339,14 @@ With such a large data set we can answer a few basic interesting questions, for 
 - What is the most cited paper?    
 - What is the most cited paper per decade?
 
-Here are the top ten most cited items overall:
+Here are the top most cited items overall:
 
 ```{r}
 most_cited <- 
   xx %>% 
   filter(year >= 1975) %>% 
   count(.out, sort = TRUE)  %>% 
-  slice(1:10)
+  slice(1:20)
 
 knitr::kable(most_cited)
 ```

@@ -45,45 +45,66 @@ library(igraph)
 library(ggraph)
 library(tidygraph)
 
+
 set.seed(1234)
+
+n_cooccurrance <- 10
+title_word_pairs_to_plot <- 
 title_word_pairs %>%
-  filter(n >= 25) %>%
+  mutate(item1 = str_trunc(item1, 30, "right"),
+         item2 = str_trunc(item2, 30, "right")) %>% 
+  filter(n >= n_cooccurrance) # Erik using 25 from  https://github.com/benmarwick/modelextinctionideas/commit/a530f3e9166c03d89249dfb3621c36e06d2a5233 but a smaller number may be more interesting
+
+title_word_pairs_to_plot %>% 
   graph_from_data_frame() %>%
   ggraph(layout = "fr") +
   geom_edge_link(aes(edge_alpha = n, edge_width = n), edge_colour = "cyan4") +
   geom_node_point(size = 5) +
   geom_node_text(aes(label = name), repel = TRUE,
-                point.padding = unit(0.2, "lines")) +
+                point.padding = unit(0.2, "lines"),
+                   size = 2) +
   theme_void()
+
+ggsave(here::here('analysis/figures/graph_plot1.png'),
+       h = 30,
+       w = 30)
 ```
 
 We can do community detection on this network to identify clusters of similar citations, according to the frequency of their co-occurance:
 
 ```{r}
 
-title_word_pairs %>%
-  filter(n >= 25) %>%
+title_word_pairs_to_plot %>% 
   graph_from_data_frame() %>%
   as_tbl_graph() %>%
   mutate(community = as.factor(group_edge_betweenness())) %>%
-  ggraph(layout = 'kk') +
-  geom_edge_link(aes(alpha = ..index..), show.legend = FALSE) +
-  geom_node_point(aes(colour = community), size = 7) +
-    geom_node_text(aes(label = name), repel = TRUE,
-                point.padding = unit(0.2, "lines")) +
+  ggraph(layout = 'fr') +
+  geom_edge_link(aes(alpha = ..index..), 
+                 show.legend = FALSE) +
+  geom_node_point(aes(colour = community), 
+                  size = 2) +
+    geom_node_text(aes(label = name), 
+                   repel = TRUE,
+                   point.padding = unit(0.2, "lines"),
+                   size = 0.7) +
   theme_graph()
+
+ggsave(here::here('analysis/figures/graph_plot2.png'),
+       h = 30,
+       w = 30)
 
 ```
 
 And here we can get the community membership in a data frame with the citations:
 
 ```{r}
+n_cooccurrance <- 15 
 citations_community <- 
   title_word_pairs %>% 
- filter(n >= 15) %>%
+  filter(n >= n_cooccurrance) %>% 
   graph_from_data_frame() %>%
   as_tbl_graph() %>%
-  mutate(community = as.factor(group_edge_betweenness()))  %>% 
+  mutate(community = str_glue('community {as.factor(group_edge_betweenness())}'))  %>% 
   as_tibble %>% 
   arrange(community)
 
@@ -122,7 +143,6 @@ xx %>%
            max_age, 
            Status,
            Species) 
-
 
 # drop items that are only cited in a single year
 xx_with_communities_occ_format_multi_year <- 
@@ -177,6 +197,27 @@ xx %>%
          Species) %>% 
   filter(!is.na(Species))
 
+# who are the main authors in each community?
+# get first author
+main_authors_in_each_community <- 
+explore_citation_communities %>% 
+  mutate(first_author = str_extract(.out, "(\\w+)")) %>% 
+  group_by(Species, first_author) %>% 
+  tally() %>% 
+  mutate(number = parse_number(Species)) %>% 
+  arrange(number, desc(n)) %>% 
+  summarise(key_authors = glue::collapse(first_author, sep = ", "),
+            number = unique(number)) %>% 
+  mutate(AuthorsTitleCase = str_to_title(key_authors)) %>% 
+  arrange(number) %>% 
+  select(Species, AuthorsTitleCase)
+
+
+```
+
+
+```{r}
+
 # each community as a proportion of all communities in that year. 
 
 communities_per_year <- 
@@ -189,6 +230,7 @@ explore_citation_communities %>%
   mutate(perc = n / sum(n) * 100) %>% 
   ungroup() 
 
+communities_per_year_plot <- 
 communities_per_year %>% 
   select(time_unit, Species) %>% 
   group_by(time_unit) %>% 
@@ -196,8 +238,9 @@ communities_per_year %>%
   ggplot(aes(time_unit,
              n)) +
   geom_col() +
-  theme_minimal() +
-  ggtitle("Number of citation communities per year")
+  theme_bw() +
+  xlab("") +
+  ylab("Number of citation\ncommunities per year")
 
 ```
 
@@ -223,21 +266,70 @@ communities_per_year_wide_range <-
   filter(range >= 10)
 
 # plot communities over time. 
-citation_communities_over_time <- 
+library(ggrepel)
+communities_per_year_wide_range_subset <- 
 communities_per_year %>% 
-  filter(Species %in% communities_per_year_wide_range$Species) %>% 
-  ggplot(aes(time_unit, 
+  filter(Species %in% communities_per_year_wide_range$Species)
+
+# who are in this plot?
+main_authors_in_each_community_in_plot <- 
+main_authors_in_each_community %>% 
+  filter(Species %in% communities_per_year_wide_range_subset$Species)
+
+write_csv(main_authors_in_each_community_in_plot, 
+          here::here("analysis/data/derived_data/main_authors_in_each_community_in_plot.csv"))
+
+# now hand edit to assign topics to these communities...
+community_2_topics <- readxl::read_excel(here::here('analysis/data/derived_data/main_authors_in_each_community_in_plot.xlsx'))
+
+communities_per_year_wide_range_subset <- 
+communities_per_year_wide_range_subset %>% 
+  mutate(Species = as.character(Species)) %>% 
+  left_join(community_2_topics, by = c('Species' = "Citation community"))
+
+min_y <- min(communities_per_year_wide_range_subset$time_unit)
+max_y <- 2027 # give room for line labels
+  
+ggplot(communities_per_year_wide_range_subset, 
+         aes(time_unit, 
            perc,
            colour = Species)) +
-  geom_point() +
-  geom_smooth(se = FALSE) +
+  geom_point(size = 2) +
+  stat_smooth(se = FALSE, size = 2) +
   scale_y_log10() +
-  theme_minimal() +
-  ggtitle("Change over time in citation communities in archaeological literature") +
+  theme_minimal(base_size = 15) + 
+  geom_text_repel (
+    data = subset(communities_per_year_wide_range_subset, 
+                  time_unit == max(time_unit)),
+    aes(label = Topics),
+    size = 6,
+    nudge_x = 0,
+    hjust = 0,
+    segment.color = "grey80",
+    direction = "y"
+   ) +
+   scale_x_continuous(breaks = min_y:max_y,
+                     labels = c(min_y:2017, rep("", length(2018:max_y))),
+                     limits = c(min_y, max_y)) +
+  theme(legend.position="none",
+         panel.grid.minor.x = element_blank(),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  # ggtitle("Change over time in citation communities in the archaeological literature") +
   xlab("Year") +
-  ylab("Percentage of all cited items in that year")
+  ylab("Percentage of all cited items in that year") +
+  annotation_custom(grob = ggplotGrob(communities_per_year_plot),
+                    xmin = 1975,
+                    xmax = 1995,
+                    ymin = -1.25,
+                    ymax = -0.25) 
 
-plotly::ggplotly(citation_communities_over_time)
+ggsave(here::here('analysis/figures/citation_communities_over_time.png'),
+       h = 10,
+       w = 27)
+
+# plotly::ggplotly(citation_communities_over_time)
+
+
 ```
 
 We can make a histogram showing the distribution of the number of years each community was cited for (community lifespan):
@@ -255,6 +347,8 @@ xx_with_communities_occ_format_multi_year_hist <-
 hist(xx_with_communities_occ_format_multi_year_hist$number_of_years_cited,
      main = paste("Number of years each article in a citation community was cited for"),
      xlab = "Number of years cited")
+
+
 ```
 
 ## PyRate analysis
