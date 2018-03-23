@@ -7,6 +7,11 @@ For the citations to be useful in the modelling, we need to put them into groups
 How many unique citations do we have?
 
 ```{r}
+library(ggplot2)
+library(igraph)
+library(ggraph)
+library(tidygraph)
+
 # If we are resuming the analysis we can just start from here, and read in the data
 # frame of citations.
 xx <- readRDS( paste0(here::here(), "/analysis/data/derived_data/items_wth_refs.rds"))
@@ -40,11 +45,6 @@ With these pairwise counts we can draw a network plot to get a sense of how mean
 ```{r}
 
 # network plot of citations: co-citations
-library(ggplot2)
-library(igraph)
-library(ggraph)
-library(tidygraph)
-
 
 set.seed(1234)
 
@@ -197,6 +197,9 @@ xx %>%
          Species) %>% 
   filter(!is.na(Species))
 
+write_csv(explore_citation_communities,
+          here::here('analysis/data/derived_data/explore_citation_communities.csv'))
+
 # who are the main authors in each community?
 # get first author
 main_authors_in_each_community <- 
@@ -212,6 +215,8 @@ explore_citation_communities %>%
   arrange(number) %>% 
   select(Species, AuthorsTitleCase)
 
+write_csv(main_authors_in_each_community,
+          here::here('analysis/data/derived_data/main_authors_in_each_community.csv'))
 
 ```
 
