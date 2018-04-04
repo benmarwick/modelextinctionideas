@@ -59,15 +59,22 @@ title_word_pairs_to_plot %>%
   graph_from_data_frame() %>%
   ggraph(layout = "fr") +
   geom_edge_link(aes(edge_alpha = n, edge_width = n), edge_colour = "cyan4") +
-  geom_node_point(size = 5) +
-  geom_node_text(aes(label = name), repel = TRUE,
-                point.padding = unit(0.2, "lines"),
-                   size = 2) +
-  theme_void()
+  geom_node_text(aes(label = name), 
+                 repel = TRUE,
+                 point.padding = unit(0.2, "lines"),
+                size = 1.2,
+                segment.colour = "grey70",
+                segment.alpha = 0.3
+                ) +
+  geom_node_point(size = 2,
+                  alpha = 0.4) +
+  theme_void() +
+  theme(legend.position="none")
 
-ggsave(here::here('analysis/figures/graph_plot1.png'),
-       h = 30,
-       w = 30)
+ggsave(here::here('analysis/figures/graph_plot1.pdf'),
+       h = 8,
+       w = 10.5,
+       units = c("in")) # for paper 10 x 5, for poster 30x30
 ```
 
 We can do community detection on this network to identify clusters of similar citations, according to the frequency of their co-occurance:
